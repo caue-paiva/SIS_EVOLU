@@ -1,26 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <string.h>
-#include <math.h>
-//#include "lin_regre.cpp"
+#include <string>   
 #include "lin_regre.h"
 #include <cmath>
 #include <iostream>
 #include <iomanip>
 
 
+
+
 #define maxx 1000
 #define TamPop 10
 #define LRTRAINSIZE 10 //How many of the best individuals from past iterations are saved to train the linear regression model
 #define number_predictors 2
-#define MAX_ITERATION 1000
+#define MAX_ITERATION 1000  //how many iterations to train the LR model
+#define Rad_to_Deegres 57.3
 
 float MaxMut = 5.0;
 bool LR_avai = false;
 float indi[TamPop+1];
 
-float**LR_X_Array;  //array of the training data for the LR model
+float **LR_X_Array;  //array of the training data for the LR model
 float *LR_Y_array;
 
 float* global_weights; //The last item of this array is the RSE of the model
@@ -39,7 +40,7 @@ void copy_X_array(){
         LR_X_Array[i][0] = 1.0;
         indi[i] = std::round(indi[i] * 100.0) / 100.0;
         LR_X_Array[i][1] = indi[i];
-       // printf( " copying X value: %f \n ",  LR_X_Array[i][1]);
+       // printf("copying X value: %f \n ",  LR_X_Array[i][1]);
     }
 }
 
@@ -61,11 +62,12 @@ void calculate_weights (){
     printf("X array %f  \n", LR_X_Array[i][1]);
  }
 
-  float* return_arr = train_use_lin_regre(LR_X_Array, LR_Y_array, LRTRAINSIZE , number_predictors,MAX_ITERATION); //Last index of the return_arr is the RMSE of the LR model
+  float* return_arr = normalized_Lin_Regre(LR_X_Array, LR_Y_array, LRTRAINSIZE , number_predictors,MAX_ITERATION); //Last index of the return_arr is the RMSE of the LR model
   
   for (int i = 0; i < number_predictors-1; i++)
-  {
-    float weighted_value =  (( ( (57.3) * atan(return_arr[i]) ) /90.0));
+  { 
+    printf(" The angular coeficient is : %f  \n",return_arr[i]);
+    float weighted_value =  ((((Rad_to_Deegres) * atan(return_arr[i]) ) /90.0));
 
     float abs_value = fabs(weighted_value);
 
@@ -83,6 +85,7 @@ void calculate_weights (){
         }
 
    }
+
    for (int i = 0; i < number_predictors-1; i++){
      global_weights[i]= return_arr[i];
      printf(" \n \n CURRENT WEIGHT IS : %f  \n \n", global_weights[i]);
