@@ -8,14 +8,17 @@
 #include "MA_LR.h"
 #include <iostream>
 
-#define maxx 1000
+#define maxx 1000   //make this code work and apply the weights, then create another file where i try the sorting and batching processes for each generation or passes of generation
 #define TamPop 10
 #define NUMPREDI 1
+#define Rad_to_Deegres 57.3
 
 float MaxMut = 5.0;
 
 float max_fit=0.0;
 float media = 0.0;
+
+bool WGT_ava = false;
 
 int i, maxi =0;
 int gen=0;
@@ -49,7 +52,6 @@ return retu_mat;
 Eigen::MatrixXd convert_matrix( float** arr){
    Eigen::MatrixXd retu_mat((TamPop+1) , NUMPREDI);
 
-
    for (int i = 0; i <TamPop+1 ; i++)
    {
      for (int k = 0; k < NUMPREDI; k++)
@@ -57,29 +59,39 @@ Eigen::MatrixXd convert_matrix( float** arr){
        retu_mat(i,k) = arr[i][k];
      }
      
-   }
-   
+   }  
  return retu_mat;
-
 }
 
- /*float calc_weights(const Eigen::VectorXd &Slopes){
-   double weighted_value =  ((((Rad_to_Deegres) * atan(return_arr[0])) /90.0));
-
-    double abs_value = fabs(weighted_value);
+float* calc_weights(const Eigen::VectorXd &Slopes){
+    float* weights_arr = (float*) malloc(sizeof(float)*NUMPREDI);
+           if(weights_arr==NULL){exit(1);}
+     
+   for (int i = 0; i < NUMPREDI; i++)
+   { 
+     float slp = Slopes(i);
+     printf("slope: %f",slp);
+     float  weighted_value =  ((((Rad_to_Deegres) * atan(slp))));  //to calculate the weights of the crossing over, we should get the weighted value  +- 0.2 or 0.15 and then add that to the baseline 0.5, if the abs value is to low then its automatically 0
+     printf(" weighted value %f \n",weighted_value );  //try dividing by 100 instead of 90 
+     weighted_value /= 100;
+     float abs_value = fabs(weighted_value);
      
       if (abs_value <= 0.1 ){
-            return_arr[0]= 0.5;
+           weights_arr[i]= 0;
 
         } else if ( weighted_value> 0){
-            weighted_value -= 0.1;
-            return_arr[0] = (weighted_value);
+            weighted_value -= 0.15;
+            weights_arr[i] = (weighted_value);
 
         } else if (weighted_value < 0 ){
-            weighted_value += 0.1;
-            return_arr[0] = (1+ (weighted_value));
+            weighted_value += 0.15;
+            weights_arr[i] = (1+ (weighted_value));
         }
-}*/
+
+   }
+   WGT_ava = true;
+   return weights_arr;
+}
 
 
 void avalia(float* indi, float* fit){
@@ -194,15 +206,28 @@ for ( i = 1; i<=TamPop; i++){ //torneio
 }
 
 
-void ag(float*indi, float* fit, float* temp_indi){
+void ag(float*indi, float* fit, float* temp_indi, float** Gene_wgth_ptr){
+ 
  Sele_natu(indi,fit);
  avalia(indi,fit);
  torneio(indi,fit,temp_indi);
 
+
+if (gen % 5 == 0){  //novo modelo será treinado apenas a cada 5 gerações
  Eigen::MatrixXd X = convert_1D_arr_matrix(indi);
  Eigen::VectorXd Y = convert_1D_arr_vector(fit);
  Eigen::VectorXd slopes = Matrix_MSS(X,Y);
- std::cout << "Here is the matrix mat:" << std::endl <<slopes << " \n"  << std::endl;
+ *Gene_wgth_ptr = calc_weights(slopes);
+
+  for (int i = 0; i < NUMPREDI; i++)
+ {
+   printf(" weight at the array %f \n", (*Gene_wgth_ptr[i]));
+ }
+ 
+ std::cout << " \n Here is the matrix mat: " << std::endl <<slopes << " \n"  << std::endl;
+
+
+}
 
  gen++;
 
@@ -214,6 +239,8 @@ int main(){
  float* fit = (float*) malloc(sizeof(float)* (TamPop+1));
  float* temp_indi = (float*) malloc(sizeof(float)* (TamPop+1));
 
+ float* Gene_wgth;
+
  if(indi ==NULL || fit ==NULL || temp_indi ==NULL){exit(1);}
 
  srand(time(NULL));
@@ -221,7 +248,7 @@ int main(){
  init_pop(indi);
 
   for (int i = 0; i < 100; i++) {  // Run the AG for 100 generations
-     ag(indi,fit, temp_indi);
+     ag(indi,fit, temp_indi, &Gene_wgth);
  }
 
 return 0;
