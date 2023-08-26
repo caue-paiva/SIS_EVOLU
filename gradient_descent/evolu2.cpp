@@ -34,6 +34,7 @@ float **LR_X_Array;  //array of the training data for the LR model
 float **LR_X_Array2;
 float *LR_Y_array;
 float *LR_Y_array2;
+float *LR_Y_array3;
 
 std::pair<double, double> global_weight[TamPop+1]; //The first item of this pair is the ordered individual set, the second are their respective weights
 
@@ -120,6 +121,20 @@ float *robust_scaler(float **X, float *Y){
 
   return return_array;
   
+}
+
+void print_y_arr(float* arr, int n){
+     for (int i = 0; i < n; i++)
+     {
+        printf("%f \n", arr[i]);
+     }     
+}
+
+void print_x_arr(float** arr, int n){
+     for (int i = 0; i < n; i++)
+     {
+        printf("%f \n", arr[i][1]);
+     }     
 }
 
 /****************** WEIGHTS ******************/
@@ -257,7 +272,7 @@ class LinearRegressionModel{
 };
 
 
-double* normalized_Lin_Regre(float** x_array2, float * y_array, int batch_size){
+double* normalized_Lin_Regre(float** x_array2, float * perm_y_array, float* temp_y_arr, int batch_size){
   
     double *return_array= ( double*) malloc (sizeof( double)* number_predictors);  //this will be the array returned by the function, it will return the angular coeficient (second weight) and the RMSE
     if (return_array ==  NULL){
@@ -265,47 +280,64 @@ double* normalized_Lin_Regre(float** x_array2, float * y_array, int batch_size){
         exit(1);
     }
 
-   
-   for (int i = 0; i < batch_size-1; i++)
+ for (int k = 0; k < batch_size-1; k++)
    {   
-    if (x_array2[i][1] > x_array2[i+1][1])
-    {
+    for (int i = 0; i < batch_size-1; i++)
+     {   
+     if (x_array2[i][1] > x_array2[i+1][1])
+     {
          float temp = x_array2[i+1][1];
+         float Ytemp = perm_y_array[i+1];
+
          x_array2[i+1][1] = x_array2[i][1];
+         perm_y_array[i+1] = perm_y_array[i];
+         
          x_array2[i][1] = temp;
+         perm_y_array[i] = Ytemp;
        
     }
 
-    if (y_array[i] > y_array[i+1]){
+    if (temp_y_arr[i] > temp_y_arr[i+1]){
 
         float temp2;
-        temp2 =  y_array[i+1];
-        y_array[i+1] = y_array[i];
-        y_array[i] = temp2;
+        temp2 = temp_y_arr[i+1];
+        temp_y_arr[i+1] =temp_y_arr[i];
+        temp_y_arr[i] = temp2;
     }
-   
-}
-   printf("sorted the array \n"); 
 
-   for (int i = 0; i <batch_size ; i++){    
-      printf(" \n X value loading after sort  %f \n", x_array2[i][1]);
-      printf(" \n y value loading  after sort  %f \n", y_array[i]);
-   }
+   }   
+}
+
+   printf("sorted X array \n");  
+   print_x_arr(x_array2,batch_size);
+
+   printf(" \n Y array with correlation to the X arr: \n");
+   print_y_arr(perm_y_array, batch_size);
+
+   printf(" \n sorted Y array  \n");
+   print_y_arr(temp_y_arr, batch_size);
+   
+
+
+//    for (int i = 0; i <batch_size ; i++){    
+//       printf(" \n X value loading after sort  %f \n", x_array2[i][1]);
+//       printf(" \n y value loading  after sort  %f \n", temp_y_arr[i]);
+//    }
 
    std:: cout << "\n new data loaded \n";
    std::cout << "Making LinearRegressionModel \n";
 
    float *normalizer_data;
-   normalizer_data = robust_scaler(x_array2,y_array);  //this function normalizes the dataset and return info from the process
+   normalizer_data = robust_scaler(x_array2,temp_y_arr);  //this function normalizes the dataset and return info from the process
     for (int i = 0; i <batch_size ; i++){    
       printf(" \n X value loading after normalization  %f \n", x_array2[i][1]);
-      printf(" \n y value loading  after normalization  %f \n", y_array[i]);
+      printf(" \n y value loading  after normalization  %f \n", temp_y_arr[i]);
     }
 
-   LinearRegressionModel linear_reg = LinearRegressionModel(x_array2, y_array, batch_size, number_predictors);    
+   LinearRegressionModel linear_reg = LinearRegressionModel(x_array2, temp_y_arr, batch_size, number_predictors);    
   
    linear_reg.train(MAX_ITERATION, LEARNING_RATE);
-
+   
    double* weights_values= linear_reg.weights.values;
    int number_weights= linear_reg.weights.number_weights;
    double weights_array[number_weights];
@@ -353,13 +385,14 @@ void copy_Y_array(int start, float* arr){
 void calculate_weights (){ 
  double* return_arr;
 
-  for (int i = 0; i < LRTRAINSIZE/LRCLUSTERSIZE; i++){   
+  for (int i = 0; i < LRTRAINSIZE/LRCLUSTERSIZE; i++){      // this code will divide the population and batches and send each patch to the LR model one at a time, and will assign their weights on a pair array
     copy_X_array(i*LRCLUSTERSIZE, LR_X_Array);
     copy_Y_array(i*LRCLUSTERSIZE, LR_Y_array);
-    copy_X_array(i*LRCLUSTERSIZE, LR_X_Array2);
+    copy_X_array(i*LRCLUSTERSIZE, LR_X_Array2); //this array has its values kept intact due to not passing trought the LR model
     copy_Y_array(i*LRCLUSTERSIZE, LR_Y_array2);
+    copy_Y_array(i*LRCLUSTERSIZE, LR_Y_array3);
 
-   return_arr = normalized_Lin_Regre(LR_X_Array, LR_Y_array,LRCLUSTERSIZE);
+   return_arr = normalized_Lin_Regre(LR_X_Array, LR_Y_array, LR_Y_array3, LRCLUSTERSIZE);
 
     printf(" The angular coeficient is : %f  \n",return_arr[0]);
 
@@ -379,11 +412,11 @@ void calculate_weights (){
             return_arr[0] = (1+ (weighted_value));
         }
     
-    for (int k = 0; k <LRCLUSTERSIZE; k++){ //error here
+    for (int k = 0; k <LRCLUSTERSIZE; k++){ 
       
-     global_weight[i*LRCLUSTERSIZE].first = LR_X_Array2[k][1];
+     global_weight[i*LRCLUSTERSIZE].first = LR_X_Array2[k][1]; //assignaling the batch X values to the weight list
       printf(" returned values are %f ", LR_X_Array2[k][1]);
-     global_weight[i*LRCLUSTERSIZE].second= return_arr[0];
+     global_weight[i*LRCLUSTERSIZE].second= return_arr[0];    //assignaling the weight/slope for the  processed batch 
      printf(" \n \n CURRENT WEIGHT IS : %f  \n \n", global_weight[i*LRCLUSTERSIZE].second);
    }
    printf("  \n putting weights on global var");
@@ -596,10 +629,12 @@ void ag(){
 
 int main(){
  LR_X_Array = alloc_X_arr(LRCLUSTERSIZE, number_predictors);
- LR_Y_array = alloc_Y_arr(LRCLUSTERSIZE);
+ LR_Y_array = alloc_Y_arr(LRCLUSTERSIZE); //this array wont be fed into the normalizer algo and will instead keep the same relation to the X array even when sorted
 
  LR_X_Array2 = alloc_X_arr(LRCLUSTERSIZE, number_predictors);
  LR_Y_array2 = alloc_Y_arr(LRCLUSTERSIZE);
+
+ LR_Y_array3 = alloc_Y_arr(LRCLUSTERSIZE);  //this array will be the one to be feed into the normalizer algoritmn
 
  srand(time(NULL));
 
